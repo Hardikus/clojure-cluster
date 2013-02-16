@@ -10,7 +10,9 @@
 ;;   
 
 (ns cluster.core
-    (:use cluster.internal))
+    (:use cluster.internal)
+    (:use cluster.clustering)
+    )
 
 (defn kcluster
   "Performs k-means clustering.
@@ -23,22 +25,23 @@
   ([vectors how-many start end]
      (kcluster vectors (random-vectors how-many (count (nth vectors 0)) start end)))
   ([vectors nodes]
-     (let [clusters
-           (loop [index 0
-                  clusters (vec (replicate (count nodes) []))]
-             (if (= (count vectors) index)
-               clusters
-               (let [vector (nth vectors index)
-                     [sim closest-node] (closest-vector vector nodes)]
-                 (recur 
-                  (inc index)
-                  (assoc clusters 
-                    closest-node 
-                    (conj (nth clusters closest-node) index))))))
-           new-nodes (map (fn [cluster] (average-vectors (map #(nth vectors %) cluster))) clusters)]
-       (if (= new-nodes nodes)
-         [clusters new-nodes]
-         (kcluster vectors new-nodes)))))
+    (k-means1 vectors nodes)))
+;     (let [clusters
+;           (loop [index 0
+;                  clusters (vec (replicate (count nodes) []))]
+;             (if (= (count vectors) index)
+;               clusters
+;               (let [vector (nth vectors index)
+;                     [sim closest-node] (closest-vector vector nodes)]
+;                 (recur 
+;                  (inc index)
+;                  (assoc clusters 
+;                    closest-node 
+;                    (conj (nth clusters closest-node) index))))))
+;           new-nodes (map (fn [cluster] (average-vectors (map #(nth vectors %) cluster))) clusters)]
+;       (if (= new-nodes nodes)
+;         [clusters new-nodes]
+;         (kcluster vectors new-nodes)))))
 
 
 (defn hcluster 
