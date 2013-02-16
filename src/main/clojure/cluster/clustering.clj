@@ -18,8 +18,7 @@
 (defn vector-norm [v]
   (Math/sqrt (reduce + (map sqr v))))
 (defn vector-euclidean-distance [x y]
-  (Math/sqrt
-    (reduce + (map sqr (vector-substract x y)))))
+  (Math/sqrt (reduce + (map sqr (vector-substract x y)))))
 
 (defn sparse-add [& vs]
   (apply merge-with + vs))
