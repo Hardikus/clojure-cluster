@@ -1,30 +1,47 @@
 ;; Internal functions used by clojure.cluster
 
-(ns cluster.internal)
+(ns cluster.internal
+  (:use [clojure.contrib.generic.math-functions :only [sqr sqrt]]
+        [incanter.stats :only [variance covariance mean]]))
 
-(defn mean [v1] (/ (reduce + v1) (count v1)))
-(defn sqrt [n] (. Math sqrt n))
-(defmacro square [n] 
-  `(let [n# ~n] (* n# n#)))
+(defmacro sum [v] `(reduce + ~v))
+;
+;(defn variance [v] 
+;  (sum 
+;    (for [vi v] 
+;      (sqr 
+;        (- vi (mean v))))))
+;
+;(defn covariance [v w] 
+;  (sum 
+;    (for [i (range (count v))] 
+;      (sqr 
+;        (* (- (v i) (mean v)) (- (w i) (mean w)))))))
 
-(defn sum [v] (reduce + v))
-
+;(defn std-dev [v] (let [meanv ]
+;                    (/ (variance v)
+;                       (count v))))
+; for Bessel's correction:
+;                       (dec (count v)))))
 
 
 (defn pearson [x y]
-  (let [n (count x)
-        o (/ 1 n)
-        sum-y (sum y)
-        sum-x (sum x)
-        prod-of-sqrts (* (sqrt (- (sum (map #(square %) x))
-                                  (* o (square sum-x)))) 
-                         (sqrt (- (sum (map #(square %) y))
-                                  (* o (square sum-y)))))]
-    (if (= 0.0 prod-of-sqrts)
-      nil
-      (/ (- (sum (map #(* %1 %2) x y))
-            (* o sum-x sum-y)) 
-         prod-of-sqrts))))
+  (/ (covariance x y)
+     (sqrt (* (variance x)
+              (variance y)))))
+     
+;  (let [n (count x)
+;        sum-y (sum y)
+;        sum-x (sum x)
+;        prod-of-sqrts (* (sqrt (- (sum (map sqr x))
+;                                  (/ (sqr sum-x) n))) 
+;                         (sqrt (- (sum (map #(square %) y))
+;                                  (/ (sqr sum-y) n))))]
+;    (if (= 0.0 prod-of-sqrts)
+;      nil
+;      (/ (- (sum (map #(* %1 %2) x y))
+;            (/ (* sum-x sum-y) n)) 
+;         prod-of-sqrts))))
 
 
 
@@ -86,21 +103,14 @@
 
 
 (defn random-vector [length range-start range-end]
-  (loop [index 0 vector []]
-    (if (= index length)
-      vector
-      (recur (inc index)
-             (cons (+ range-start 
-                      (rand (- range-end range-start))) 
-                   vector)))))
+  (into [] 
+        (for [index (range length)]
+          (+ range-start 
+             (rand (- range-end range-start))))))
 
-(defn random-vectors [how-many length range-start range-end]
-  (loop [how-many-left how-many
-         vectors []]
-    (if (= 0 how-many-left)
-      vectors
-      (recur (dec how-many-left)
-             (cons (random-vector length range-start range-end) vectors)))))
+(defn random-vectors [k length range-start range-end]
+  (for [i (range k)]
+    (random-vector length range-start range-end)))
 
 
 
