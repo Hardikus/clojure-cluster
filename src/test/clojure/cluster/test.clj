@@ -3,12 +3,11 @@
 (ns cluster.test
     (:use clojure.test)
     (:use cluster.clustering)
-;    (:use cluster.core)
-;    (:use cluster.internal)
+    (:use cluster.core)
+    (:use cluster.internal)
     )
 
-
-;; hcluster tests
+(comment "hcluster tests"
 
 (deftest test-hcluster-empty-nodes []
   (is (= [] (hcluster []))))
@@ -33,43 +32,35 @@
          (hcluster [{:vec [1 2]}
                     {:vec [2 3]}
                     {:vec [4 8]}]))))
-
+)
 
 ;; kcluster tests
 
 (deftest test-kcluster-two-nodes []
-  (let [[[[x] [y]] nodes] (kcluster [[1 2] [2 1]] 2 1 2)]
-    (is (and (or (= x 1) (= x 0))
-             (or (= y 1) (= y 0))
-             (= (+ x y) 1)))))
+  (let [[[c1] [c2]] (kcluster [[1 2] [2 1]] 2 1 2)]
+    (is (= c1 0)
+        (= c2 0))))
 
 
 ;; internal tests
-    
-(deftest test-mean []
-  (is (= (mean [0]) 0))
-  (is (= (mean [1]) 1))
-  (is (= (mean [1 2]) 1.5)))
-
-(deftest test-sqrt []
-  (is (= (sqrt 4) 2))
-  (is (= (sqrt 9) 3))
-  (is (= (sqrt 2.25) 1.5)))
-
-(deftest test-square []
-  (is (= (square 3) 9))
-  (is (= (square 0) 0)))
 
 (deftest test-sum []
-  (is (= (sum [1 2 3]) 6)))
+  (is (== (sum [1 2 3]) 6)))
 
-(deftest test-pearson []
-  (is (= 0.9999999999999998 (pearson [1 2] [1 2])))
-  (is (= -0.9999999999999998 (pearson [1 2] [2 1])))
-  (is (= 0.0 (pearson [1 2 3] [1 2 1]))))
+(deftest test-pearson 
+  (is (== 1.0 (pearson [1 2] [1 2])))
+  (is (== -1.0 (pearson [1 2] [2 1])))
+  (is (== 0.0 (pearson [1 2 3] [1 2 1]))))
+
+
+(deftest test-euclidean-distance 
+  (is (== 0.0 (euclidean-distance [1 2] [1 2])))
+  (is (== 1.4142135623730951 (euclidean-distance [1 2] [2 1])))
+  (is (== 3.0 (euclidean-distance [4,1,-2] [2,3,-1])))
+  (is (== 2.0 (euclidean-distance [1 2 3] [1 2 1]))))
 ;
 ;(deftest test-compact []
-;  (is (= [1 2 3] (compact [nil 1 nil 2 nil 3 nil nil])))
+;  (is (== [1 2 3] (compact [nil 1 nil 2 nil 3 nil nil])))
 ;
 ;(deftest test-average-vectors []
 ;  (is (= [2 2 2] (average-vectors [[1 3 1] [3 1 3] [2 2 2]])))
