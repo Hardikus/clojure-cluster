@@ -14,6 +14,8 @@
     (:use cluster.clustering)
     )
 
+;; TODO: deprecated
+(comment
 (defn kcluster
   "Performs k-means clustering.
     :vectors - a sequence of vectors
@@ -26,45 +28,26 @@
      (kcluster vectors (random-vectors how-many (count (nth vectors 0)) start end)))
   ([vectors nodes]
     (k-means1 vectors nodes)))
-;     (let [clusters
-;           (loop [index 0
-;                  clusters (vec (replicate (count nodes) []))]
-;             (if (= (count vectors) index)
-;               clusters
-;               (let [vector (nth vectors index)
-;                     [sim closest-node] (closest-vector vector nodes)]
-;                 (recur 
-;                  (inc index)
-;                  (assoc clusters 
-;                    closest-node 
-;                    (conj (nth clusters closest-node) index))))))
-;           new-nodes (map (fn [cluster] (average-vectors (map #(nth vectors %) cluster))) clusters)]
-;       (if (= new-nodes nodes)
-;         [clusters new-nodes]
-;         (kcluster vectors new-nodes)))))
-
+)
 
 (defn hcluster 
   "Performs hierarchical clustering.
     :nodes - a sequence of maps of the form:
       { :vec [1 2 3] }
    The return value will be a tree of Maps of the form:
-     { :vec [] :left { :vec ... } :right { :vec ... } }"
+      { :vec [] :left { :vec ... } :right { :vec ... } }"
   [nodes]
   (if (< (count nodes) 2)
     nodes
-    (let [vectors (map #(get % :vec) nodes)
-          [closest-pair cls] (closest-vectors vectors)
-          [left-idx right-idx] closest-pair
-          new-nodes (without nodes left-idx right-idx)
-          left-node (nth nodes left-idx)
-          right-node (nth nodes right-idx)]
+    (let [vectors (vec (map :vec nodes))
+          [l r :as closest-pair] (closest-vectors vectors)
+          new-nodes (vec (for [i (range (count nodes)) :when (and (not= i l) (not= i r))] (nodes i)))]
       (hcluster (conj 
                  new-nodes
-                 {:left left-node
-                  :right right-node 
-                  :vec (average-vectors 
-                        [(get left-node :vec) 
-                         (get right-node :vec)])})))))
+                 {:left (nodes l)
+                  :right (nodes r)
+                  :vec (centroid
+                         (:vec (nodes l) ) 
+                         (:vec (nodes r) ))})))))
 
 
