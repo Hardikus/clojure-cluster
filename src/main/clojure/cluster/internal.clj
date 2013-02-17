@@ -4,113 +4,66 @@
   (:use [clojure.contrib.generic.math-functions :only [sqr sqrt]]
         [incanter.stats :only [variance covariance mean]]))
 
-(defmacro sum [v] `(reduce + ~v))
-;
-;(defn variance [v] 
-;  (sum 
-;    (for [vi v] 
-;      (sqr 
-;        (- vi (mean v))))))
-;
-;(defn covariance [v w] 
-;  (sum 
-;    (for [i (range (count v))] 
-;      (sqr 
-;        (* (- (v i) (mean v)) (- (w i) (mean w)))))))
+(defn- sum-of-squares [coll]
+  (reduce (fn [^double x ^double y] (+ x y)) 
+          (map (fn [^double x ^double y] (* x y)) coll coll)))
 
-;(defn std-dev [v] (let [meanv ]
-;                    (/ (variance v)
-;                       (count v))))
-; for Bessel's correction:
-;                       (dec (count v)))))
+(defprotocol Vector
+  (each [v op w] "Yields a new vector constructed by applying op to each pair (vi, wi) in v and w,
+if w is a vector or each pair (vi, w) if w is a number.")
+  (norm [v]))
+
+(extend-type clojure.lang.PersistentVector
+  Vector
+  (each [v op w]
+    (vec (cond 
+           (number? w) 
+           (map op v (repeat w))
+           
+           (and (vector? w) (>= (count v) (count w)))
+           (map op v (lazy-cat w (repeat 0)))
+           
+           :default
+           (map op (lazy-cat v (repeat 0)) w))))
+  (norm [v] (sqrt (sum-of-squares v))))
 
 
+
+(extend-type clojure.lang.APersistentMap
+  Vector
+  (each [v op w] 
+    (let [w (if (number? w) (zipmap (keys v) (repeat w)) w)]
+      (merge-with op v w)))
+  (norm [v] (sqrt (sum-of-squares (vals v)))))
+
+(defn centroid [& xs]
+  (each
+    (reduce (fn [v w] (each v + w)) xs)
+    *
+    (double (/ 1 (count xs)))))
+
+(defn euclidean-distance [v w] 
+  (norm (each v - w)))
+
+(defn sparse-vector [coll]
+  (into 
+    {} (filter
+         (fn [[_ v]] (or (> v 0) (< v 0)))
+         (map-indexed vector coll))))
+
+;; TODO: pearson has to be refactored, does not work on maps
 (defn pearson [x y]
   (/ (covariance x y)
      (sqrt (* (variance x)
               (variance y)))))
-     
-;  (let [n (count x)
-;        sum-y (sum y)
-;        sum-x (sum x)
-;        prod-of-sqrts (* (sqrt (- (sum (map sqr x))
-;                                  (/ (sqr sum-x) n))) 
-;                         (sqrt (- (sum (map #(square %) y))
-;                                  (/ (sqr sum-y) n))))]
-;    (if (= 0.0 prod-of-sqrts)
-;      nil
-;      (/ (- (sum (map #(* %1 %2) x y))
-;            (/ (* sum-x sum-y) n)) 
-;         prod-of-sqrts))))
 
-
-
-(defn compact [v]
-  (filter #(not (nil? %)) v))
-    
-
-(defn average-vectors [vectors]
-  (loop [rests vectors out '()]
-    (let [firsts (compact (map first rests))]
-      (if (= 0 (count rests))
-        out
-        (recur (compact (map rest rests)) `(~@out ~(mean firsts)))))))
-
-(defmacro grtr [n1 n2] `(if (> ~n1 ~n2) ~n1 ~n2))
-
-(defn closest-vector
-  ([target others] (closest-vector target others 0))
-  ([target others n]
-   (let [current (first others)
-         sim (or (pearson target current) 0.0)
-         others (rest others)]
-     (if (= 0 (count others))
-       [sim, n]
-       (let [[other-sim, other-n] (closest-vector target others (inc n))]
-         (if (> sim other-sim) [sim,n] [other-sim,other-n]))))))
-      
-(defn n-in-cycle [cyclen start i]
-  (let [absi (+ start i 1)]
-    (if (>= absi cyclen)
-      (n-in-cycle cyclen start (- absi cyclen))
-      absi)))
 
 (defn closest-vectors [vs]
-  (let [vcyc (cycle vs) vlen (count vs)]
-    (loop [ptr 0 pair [0 0] c -1.0]
-      (if (= ptr vlen)
-        [pair c]
-        (let [[cp cn] (closest-vector 
-                       (nth vs ptr) 
-                       (take (dec vlen) (nthrest vcyc (inc ptr))))
-              closer? (if (> cp c) true nil)]
-          (recur (inc ptr)
-                 (if closer? [ptr (n-in-cycle vlen ptr cn)] pair)
-                 (if closer? cp c)))))))
-
-(defn include? [v i]
-  (some #(= i %) v))
-
-(defn without [v & more]
-  (loop [cv v ov '() ptr 0]
-    (if (= 0 (count cv))
-      ov
-      (recur (rest cv)
-             (if (not (include? more ptr))
-               `(~@ov ~(first cv))
-               ov)
-             (inc ptr)))))
-
-
-(defn random-vector [length range-start range-end]
-  (into [] 
-        (for [index (range length)]
-          (+ range-start 
-             (rand (- range-end range-start))))))
-
-(defn random-vectors [k length range-start range-end]
-  (for [i (range k)]
-    (random-vector length range-start range-end)))
+  (apply min-key
+    (fn [[x y]] (euclidean-distance (vs x) (vs y)))
+    (for [i (range (count vs))
+          j (range (inc i) (count vs))]
+      [i j])))
 
 
 
